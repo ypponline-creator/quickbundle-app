@@ -283,7 +283,7 @@ export default function NewBundle() {
                           {product.title}
                         </Text>
                         <Text variant="bodySm" tone="subdued" as="span">
-                          ${product.price?.toFixed(2)}
+                          {currency} {product.price?.toFixed(2)}
                         </Text>
                       </BlockStack>
                       <Button
@@ -363,13 +363,13 @@ export default function NewBundle() {
                       label="Tipe Diskon"
                       options={[
                         { label: "Persentase (%)", value: "PERCENTAGE" },
-                        { label: "Nominal ($)", value: "FIXED" },
+                        { label: `Nominal (${currency})`, value: "FIXED" },
                       ]}
                       value={tier.discountType}
                       onChange={(v) => updateVolumeTier(index, "discountType", v)}
                     />
                     <TextField
-                      label={tier.discountType === "PERCENTAGE" ? "Diskon (%)" : "Diskon ($)"}
+                      label={tier.discountType === "PERCENTAGE" ? "Diskon (%)" : `Diskon (${currency})`}
                       type="number"
                       value={String(tier.discountValue)}
                       onChange={(v) => updateVolumeTier(index, "discountValue", parseFloat(v))}
