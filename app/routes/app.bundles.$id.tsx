@@ -299,13 +299,13 @@ export default function EditBundle() {
                             label="Tipe Diskon"
                             options={[
                               { label: "Persentase (%)", value: "PERCENTAGE" },
-                              { label: "Nominal ($)", value: "FIXED" },
+                              { label: `Nominal (${currency})`, value: "FIXED" },
                             ]}
                             value={tier.discountType}
                             onChange={(v) => updateVolumeTier(index, "discountType", v)}
                           />
                           <TextField
-                            label={tier.discountType === "PERCENTAGE" ? "Diskon (%)" : "Diskon ($)"}
+                            label={tier.discountType === "PERCENTAGE" ? "Diskon (%)" : `Diskon (${currency})`}
                             type="number"
                             value={String(tier.discountValue)}
                             onChange={(v) => updateVolumeTier(index, "discountValue", parseFloat(v))}
@@ -372,9 +372,11 @@ export default function EditBundle() {
                   <InlineStack align="space-between">
                     <Text as="span" variant="bodyMd">Diskon</Text>
                     <Text as="span" variant="bodyMd">
-                      {bundle.discountType === "PERCENTAGE"
-                        ? `${bundle.discountValue}%`
-                        : `${currency} ${bundle.discountValue}`}
+                      {bundle.type === "VOLUME"
+                        ? `${volumeTiers.length} tier`
+                        : bundle.discountType === "PERCENTAGE"
+                          ? `${bundle.discountValue}%`
+                          : `${currency} ${bundle.discountValue}`}
                     </Text>
                   </InlineStack>
                   <InlineStack align="space-between">
