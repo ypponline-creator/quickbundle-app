@@ -10,5 +10,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   await authenticate.admin(request);
-  throw redirect("/app");
+
+  // Session valid - redirect to /app with shop/host params preserved
+  const params = new URLSearchParams();
+  const shop = url.searchParams.get("shop");
+  const host = url.searchParams.get("host");
+  if (shop) params.set("shop", shop);
+  if (host) params.set("host", host);
+  throw redirect(`/app?${params.toString()}`);
 };
