@@ -86,16 +86,31 @@ const PLANS = [
   },
 ];
 
+const OWNER_SHOPS = (process.env.OWNER_SHOPS || "").split(",").map(s => s.trim()).filter(Boolean);
+
+const isOwnerShop = (shop: string) => OWNER_SHOPS.includes(shop);
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
+  if (isOwnerShop(session.shop)) {
+    await prisma.shopSettings.upsert({
+      where: { shop: session.shop },
+      update: { plan: "PRO" },
+      create: { shop: session.shop, plan: "PRO" },
+    });
+    return json({ currentPlan: "PRO", isOwner: true });
+  }
   const settings = await prisma.shopSettings.findUnique({
     where: { shop: session.shop },
   });
-  return json({ currentPlan: settings?.plan || "FREE" });
+  return json({ currentPlan: settings?.plan || "FREE", isOwner: false });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session, billing } = await authenticate.admin(request);
+
+  if (isOwnerShop(session.shop)) return json({ ok: true });
+
   const formData = await request.formData();
   const plan = formData.get("plan") as string;
 
@@ -135,7 +150,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Billing() {
-  const { currentPlan } = useLoaderData<typeof loader>();
+  const { currentPlan, isOwner } = useLoaderData<typeof loader>();
   const submit = useSubmit();
 
   const handleUpgrade = (planKey: string) => {
@@ -153,9 +168,14 @@ export default function Billing() {
               <Badge tone="success" size="large">
                 {PLANS.find((p) => p.key === currentPlan)?.name || "Free"}
               </Badge>
-              <Text as="span" tone="subdued" variant="bodyMd">
-                7 hari trial untuk semua plan berbayar
-              </Text>
+              {isOwner && (
+                <Badge tone="magic" size="large">Developer — Gratis Selamanya</Badge>
+              )}
+              {!isOwner && (
+                <Text as="span" tone="subdued" variant="bodyMd">
+                  7 hari trial untuk semua plan berbayar
+                </Text>
+              )}
             </InlineStack>
           </BlockStack>
         </Card>
