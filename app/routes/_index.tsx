@@ -5,7 +5,8 @@ import { login } from "../shopify.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   if (url.searchParams.get("shop")) {
-    throw redirect(`/auth?${url.searchParams.toString()}`);
+    // Send directly to /app so id_token is used only once in app.tsx
+    throw redirect(`/app?${url.searchParams.toString()}`);
   }
   return login(request);
 };
