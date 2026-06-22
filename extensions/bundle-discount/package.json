@@ -1,0 +1,12 @@
+{
+  "name": "quickbundle-discount",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npx -y @shopify/shopify-cli-extensions build",
+    "preview": "npx -y @shopify/shopify-cli-extensions preview"
+  },
+  "devDependencies": {
+    "@shopify/shopify-cli-extensions": "^3.0.0"
+  }
+}

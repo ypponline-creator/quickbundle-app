@@ -1,0 +1,24 @@
+query RunInput {
+  cart {
+    lines {
+      id
+      quantity
+      merchandise {
+        ... on ProductVariant {
+          id
+          product {
+            id
+            metafield(namespace: "quickbundle", key: "bundles") {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+  discountNode {
+    metafield(namespace: "quickbundle", key: "config") {
+      value
+    }
+  }
+}

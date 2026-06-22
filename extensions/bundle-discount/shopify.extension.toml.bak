@@ -1,0 +1,17 @@
+api_version = "2024-10"
+
+[[extensions]]
+type = "function"
+name = "QuickBundle Discount"
+handle = "quickbundle-discount"
+uid = "abb115c6-5408-98a2-7d45-9ebd23b93a0b924bd010"
+runtime = "wasm32-wasi"
+build_path = "dist/index.wasm"
+
+[extensions.build]
+command = "npm run build"
+
+[[extensions.targeting]]
+target = "purchase.product-discount.run"
+input_query = "./src/run.graphql"
+module = "./src/run.ts"

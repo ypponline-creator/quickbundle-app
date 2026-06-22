@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id          String    @id
+  shop        String
+  state       String
+  isOnline    Boolean   @default(false)
+  scope       String?
+  expires     DateTime?
+  accessToken String
+  userId      BigInt?
+  firstName   String?
+  lastName    String?
+  email       String?
+  accountOwner Boolean  @default(false)
+  locale      String?
+  collaborator Boolean? @default(false)
+  emailVerified Boolean? @default(false)
+}
+
+model Bundle {
+  id           String         @id @default(cuid())
+  shop         String
+  title        String
+  type         String
+  status       String         @default("ACTIVE")
+  discountType String         @default("PERCENTAGE")
+  discountValue Float         @default(0)
+  minQuantity  Int?
+  maxQuantity  Int?
+  settings     String         @default("{}")
+  products     BundleProduct[]
+  volumeTiers  VolumeTier[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([shop])
+}
+
+model BundleProduct {
+  id          String  @id @default(cuid())
+  bundleId    String
+  bundle      Bundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  productId   String
+  productTitle String
+  productImage String?
+  variantId   String?
+  variantTitle String?
+  price       Float   @default(0)
+  comparePrice Float?
+  quantity    Int     @default(1)
+  isRequired  Boolean @default(true)
+  role        String  @default("MAIN")
+
+  @@index([bundleId])
+}
+
+model VolumeTier {
+  id           String @id @default(cuid())
+  bundleId     String
+  bundle       Bundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  minQuantity  Int
+  discountType String @default("PERCENTAGE")
+  discountValue Float
+
+  @@index([bundleId])
+}
+
+model BundleStat {
+  id         String   @id @default(cuid())
+  shop       String
+  bundleId   String
+  event      String
+  revenue    Float    @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([shop, bundleId])
+}
+
+model ShopSettings {
+  id              String @id @default(cuid())
+  shop            String @unique
+  plan            String @default("FREE")
+  widgetPosition  String @default("below_add_to_cart")
+  widgetTitle     String @default("Complete the Bundle & Save!")
+  primaryColor    String @default("#008060")
+  showOnMobile    Boolean @default(true)
+  currency        String @default("USD")
+  updatedAt       DateTime @updatedAt
+}

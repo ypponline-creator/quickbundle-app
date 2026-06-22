@@ -1,0 +1,31 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+name = "QuickBundle "
+client_id = "09d6042335412f0c52b8643bdc976e37"
+application_url = "https://shopify.dev/apps/default-app-home"
+# URL akan otomatis diupdate saat npm run dev
+embedded = true
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_discounts,read_draft_orders,read_orders,read_products,write_discounts,write_draft_orders,write_products"
+
+[auth]
+redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
+
+[webhooks]
+api_version = "2026-07"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks"
+  topics = [
+  "app/uninstalled",
+  "orders/create"
+]
+
+[pos]
+embedded = false

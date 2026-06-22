@@ -1,0 +1,15 @@
+api_version = "2024-10"
+
+[[extensions]]
+type = "ui_extension"
+name = "QuickBundle Widget"
+handle = "quickbundle-widget"
+uid = "4559f04e-d8e0-b300-6263-1b5817bc4e2df6cd2f02"
+
+[[extensions.targeting]]
+target = "admin.product-details.block.render"
+module = "./src/AdminBundleBlock.tsx"
+
+[extensions.capabilities]
+api_access = true
+network_access = true

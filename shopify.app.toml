@@ -1,0 +1,29 @@
+name = "QuickBundle - Product Bundle & Upsell"
+client_id = "09d6042335412f0c52b8643bdc976e37"
+application_url = "https://your-app-url.ngrok-free.app"
+embedded = true
+
+[build]
+include_config_on_deploy = true
+
+[access_scopes]
+scopes = "read_products,write_products,read_orders,write_discounts,read_discounts,write_draft_orders,read_draft_orders"
+
+[auth]
+redirect_urls = [
+  "https://your-app-url.ngrok-free.app/auth/callback"
+]
+
+[webhooks]
+api_version = "2024-10"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri = "/webhooks"
+
+[[webhooks.subscriptions]]
+topics = ["orders/create"]
+uri = "/webhooks"
+
+[pos]
+embedded = false

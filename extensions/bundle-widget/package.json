@@ -1,0 +1,10 @@
+{
+  "name": "quickbundle-widget",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@shopify/ui-extensions": "^2024.10.1",
+    "@shopify/ui-extensions-react": "^2024.10.1",
+    "react": "^18.2.0"
+  }
+}
