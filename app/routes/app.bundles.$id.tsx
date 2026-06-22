@@ -62,7 +62,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     const discountType = formData.get("discountType") as string;
     const discountValue = parseFloat(formData.get("discountValue") as string) || 0;
     const productsJson = formData.get("products") as string;
+    const volumeTiersJson = formData.get("volumeTiers") as string;
     const products = productsJson ? JSON.parse(productsJson) : [];
+    const volumeTiers = volumeTiersJson ? JSON.parse(volumeTiersJson) : [];
 
     await prisma.bundle.update({
       where: { id: params.id },
@@ -84,6 +86,18 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       })),
     });
 
+    if (volumeTiers.length > 0) {
+      await prisma.volumeTier.deleteMany({ where: { bundleId: params.id } });
+      await prisma.volumeTier.createMany({
+        data: volumeTiers.map((t: any) => ({
+          bundleId: params.id!,
+          minQuantity: t.minQuantity,
+          discountType: t.discountType || "PERCENTAGE",
+          discountValue: t.discountValue,
+        })),
+      });
+    }
+
     return json({ ok: true, updated: true });
   }
 
@@ -102,6 +116,15 @@ export default function EditBundle() {
   const [discountType, setDiscountType] = useState(bundle.discountType);
   const [discountValue, setDiscountValue] = useState(String(bundle.discountValue));
   const [products, setProducts] = useState(bundle.products);
+  const [volumeTiers, setVolumeTiers] = useState(
+    bundle.volumeTiers?.length > 0
+      ? bundle.volumeTiers
+      : [{ minQuantity: 2, discountType: "PERCENTAGE", discountValue: 10 }]
+  );
+
+  const updateVolumeTier = (index: number, field: string, value: any) => {
+    setVolumeTiers(volumeTiers.map((t: any, i: number) => i === index ? { ...t, [field]: value } : t));
+  };
 
   const handlePickProducts = async () => {
     const selected = await shopify.resourcePicker({ type: "product", multiple: true, showVariants: false });
@@ -128,6 +151,7 @@ export default function EditBundle() {
     formData.append("discountType", discountType);
     formData.append("discountValue", discountValue);
     formData.append("products", JSON.stringify(products));
+    formData.append("volumeTiers", JSON.stringify(volumeTiers));
     submit(formData, { method: "post" });
   };
 
@@ -244,6 +268,58 @@ export default function EditBundle() {
                   />
                 </BlockStack>
               </Card>
+
+              {/* Volume Tiers Editor */}
+              {bundle.type === "VOLUME" && (
+                <Card>
+                  <BlockStack gap="400">
+                    <InlineStack align="space-between">
+                      <Text variant="headingMd" as="h2">Tier Diskon Volume</Text>
+                      <Button onClick={() => setVolumeTiers([...volumeTiers, { minQuantity: volumeTiers.length + 2, discountType: "PERCENTAGE", discountValue: 0 }])}>
+                        + Tambah Tier
+                      </Button>
+                    </InlineStack>
+                    <Text variant="bodySm" tone="subdued" as="p">
+                      Contoh: beli 2 pcs = diskon 31.82% → total 75 MYR dari 110 MYR
+                    </Text>
+                    {volumeTiers.map((tier: any, index: number) => (
+                      <Box key={index} padding="300" borderWidth="025" borderRadius="200" borderColor="border">
+                        <InlineStack gap="400" align="start">
+                          <TextField
+                            label="Min Qty"
+                            type="number"
+                            value={String(tier.minQuantity)}
+                            onChange={(v) => updateVolumeTier(index, "minQuantity", parseInt(v))}
+                            autoComplete="off"
+                          />
+                          <Select
+                            label="Tipe Diskon"
+                            options={[
+                              { label: "Persentase (%)", value: "PERCENTAGE" },
+                              { label: "Nominal ($)", value: "FIXED" },
+                            ]}
+                            value={tier.discountType}
+                            onChange={(v) => updateVolumeTier(index, "discountType", v)}
+                          />
+                          <TextField
+                            label={tier.discountType === "PERCENTAGE" ? "Diskon (%)" : "Diskon ($)"}
+                            type="number"
+                            value={String(tier.discountValue)}
+                            onChange={(v) => updateVolumeTier(index, "discountValue", parseFloat(v))}
+                            autoComplete="off"
+                          />
+                          <Box paddingBlockStart="600">
+                            <Button variant="plain" tone="critical"
+                              onClick={() => setVolumeTiers(volumeTiers.filter((_: any, i: number) => i !== index))}>
+                              Hapus
+                            </Button>
+                          </Box>
+                        </InlineStack>
+                      </Box>
+                    ))}
+                  </BlockStack>
+                </Card>
+              )}
 
               {/* Discount */}
               {bundle.type !== "BOGO" && bundle.type !== "FREE_GIFT" && bundle.type !== "VOLUME" && (
