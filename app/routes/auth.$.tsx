@@ -11,11 +11,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   await authenticate.admin(request);
 
-  // Session valid - redirect to /app with shop/host params preserved
-  const params = new URLSearchParams();
-  const shop = url.searchParams.get("shop");
-  const host = url.searchParams.get("host");
-  if (shop) params.set("shop", shop);
-  if (host) params.set("host", host);
-  throw redirect(`/app?${params.toString()}`);
+  // Pass ALL params (including id_token) so app.tsx can validate session
+  throw redirect(`/app?${url.searchParams.toString()}`);
 };
