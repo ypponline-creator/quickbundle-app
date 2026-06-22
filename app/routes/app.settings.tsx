@@ -43,6 +43,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const formData = await request.formData();
 
+  const currency = formData.get("currency") as string || "MYR";
   await prisma.shopSettings.upsert({
     where: { shop: session.shop },
     update: {
@@ -50,6 +51,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       widgetTitle: formData.get("widgetTitle") as string,
       primaryColor: formData.get("primaryColor") as string,
       showOnMobile: formData.get("showOnMobile") === "true",
+      currency,
     },
     create: {
       shop: session.shop,
@@ -57,6 +59,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       widgetTitle: formData.get("widgetTitle") as string || "Complete the Bundle & Save!",
       primaryColor: formData.get("primaryColor") as string || "#008060",
       showOnMobile: formData.get("showOnMobile") === "true",
+      currency,
     },
   });
 
@@ -73,6 +76,7 @@ export default function Settings() {
   const [widgetTitle, setWidgetTitle] = useState(settings.widgetTitle);
   const [primaryColor, setPrimaryColor] = useState(settings.primaryColor);
   const [showOnMobile, setShowOnMobile] = useState(settings.showOnMobile);
+  const [currency, setCurrency] = useState(settings.currency || "MYR");
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
@@ -81,6 +85,7 @@ export default function Settings() {
     formData.append("widgetTitle", widgetTitle);
     formData.append("primaryColor", primaryColor);
     formData.append("showOnMobile", String(showOnMobile));
+    formData.append("currency", currency);
     submit(formData, { method: "post" });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
@@ -142,6 +147,18 @@ export default function Settings() {
                         />
                       </Box>
                     }
+                  />
+                  <Select
+                    label="Mata Uang Toko"
+                    options={[
+                      { label: "MYR — Ringgit Malaysia", value: "MYR" },
+                      { label: "USD — US Dollar", value: "USD" },
+                      { label: "SGD — Singapore Dollar", value: "SGD" },
+                      { label: "IDR — Rupiah Indonesia", value: "IDR" },
+                    ]}
+                    value={currency}
+                    onChange={setCurrency}
+                    helpText="Digunakan untuk tampilan harga di dashboard bundle"
                   />
                   <Checkbox
                     label="Tampilkan widget di perangkat mobile"
