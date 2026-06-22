@@ -27,13 +27,16 @@ import { useState } from "react";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  const bundle = await prisma.bundle.findFirst({
-    where: { id: params.id, shop: session.shop },
-    include: { products: true, volumeTiers: true },
-  });
+  const [bundle, settings] = await Promise.all([
+    prisma.bundle.findFirst({
+      where: { id: params.id, shop: session.shop },
+      include: { products: true, volumeTiers: true },
+    }),
+    prisma.shopSettings.findUnique({ where: { shop: session.shop } }),
+  ]);
 
   if (!bundle) throw new Response("Not Found", { status: 404 });
-  return json({ bundle });
+  return json({ bundle, currency: settings?.currency || "MYR" });
 };
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
@@ -105,7 +108,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 };
 
 export default function EditBundle() {
-  const { bundle } = useLoaderData<typeof loader>();
+  const { bundle, currency } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const submit = useSubmit();
   const [searchParams] = useSearchParams();
@@ -258,7 +261,7 @@ export default function EditBundle() {
                               {product.title || product.productTitle}
                             </Text>
                             <Text variant="bodySm" tone="subdued" as="span">
-                              ${(product.price || 0).toFixed(2)} · Qty: {product.quantity}
+                              {currency} {(product.price || 0).toFixed(2)} · Qty: {product.quantity}
                             </Text>
                           </BlockStack>
                           {product.role === "GIFT" && <Badge tone="success">GIFT</Badge>}
