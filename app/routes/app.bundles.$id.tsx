@@ -333,17 +333,17 @@ export default function EditBundle() {
                       title="Tipe Diskon"
                       choices={[
                         { label: "Persentase (%)", value: "PERCENTAGE" },
-                        { label: "Nominal tetap ($)", value: "FIXED" },
+                        { label: `Nominal tetap (${currency})`, value: "FIXED" },
                       ]}
                       selected={[discountType]}
                       onChange={(v) => setDiscountType(v[0])}
                     />
                     <TextField
-                      label={discountType === "PERCENTAGE" ? "Besar Diskon (%)" : "Besar Diskon ($)"}
+                      label={discountType === "PERCENTAGE" ? "Besar Diskon (%)" : `Besar Diskon (${currency})`}
                       type="number"
                       value={discountValue}
                       onChange={setDiscountValue}
-                      suffix={discountType === "PERCENTAGE" ? "%" : "$"}
+                      suffix={discountType === "PERCENTAGE" ? "%" : currency}
                       autoComplete="off"
                     />
                   </BlockStack>
@@ -374,7 +374,7 @@ export default function EditBundle() {
                     <Text as="span" variant="bodyMd">
                       {bundle.discountType === "PERCENTAGE"
                         ? `${bundle.discountValue}%`
-                        : `$${bundle.discountValue}`}
+                        : `${currency} ${bundle.discountValue}`}
                     </Text>
                   </InlineStack>
                   <InlineStack align="space-between">
@@ -416,7 +416,7 @@ export default function EditBundle() {
                         Hemat{" "}
                         {discountType === "PERCENTAGE"
                           ? `${discountValue}%`
-                          : `$${discountValue}`}
+                          : `${currency} ${discountValue}`}
                       </Badge>
                     </BlockStack>
                   </Box>

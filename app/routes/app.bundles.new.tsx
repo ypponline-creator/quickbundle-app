@@ -36,8 +36,9 @@ const BUNDLE_TYPES = [
 ];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-  return json({});
+  const { session } = await authenticate.admin(request);
+  const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
+  return json({ currency: settings?.currency || "MYR" });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -113,6 +114,7 @@ interface VolumeTier {
 }
 
 export default function NewBundle() {
+  const { currency } = useLoaderData<typeof loader>();
   const shopify = useAppBridge();
   const navigate = useNavigate();
   const actionData = useActionData<typeof action>();
@@ -398,17 +400,17 @@ export default function NewBundle() {
                 title="Tipe Diskon"
                 choices={[
                   { label: "Persentase (misal: 15%)", value: "PERCENTAGE" },
-                  { label: "Nominal tetap (misal: $5)", value: "FIXED" },
+                  { label: `Nominal tetap (misal: ${currency} 35)`, value: "FIXED" },
                 ]}
                 selected={[discountType]}
                 onChange={(v) => setDiscountType(v[0])}
               />
               <TextField
-                label={discountType === "PERCENTAGE" ? "Besar Diskon (%)" : "Besar Diskon ($)"}
+                label={discountType === "PERCENTAGE" ? "Besar Diskon (%)" : `Besar Diskon (${currency})`}
                 type="number"
                 value={discountValue}
                 onChange={setDiscountValue}
-                suffix={discountType === "PERCENTAGE" ? "%" : "$"}
+                suffix={discountType === "PERCENTAGE" ? "%" : currency}
                 autoComplete="off"
               />
             </BlockStack>
