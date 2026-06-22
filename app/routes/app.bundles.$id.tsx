@@ -20,7 +20,7 @@ import {
   Divider,
   ChoiceList,
 } from "@shopify/polaris";
-import { TitleBar, ResourcePicker } from "@shopify/app-bridge-react";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { useState } from "react";
@@ -97,27 +97,28 @@ export default function EditBundle() {
   const [searchParams] = useSearchParams();
   const justCreated = searchParams.get("created") === "true";
 
+  const shopify = useAppBridge();
   const [title, setTitle] = useState(bundle.title);
   const [discountType, setDiscountType] = useState(bundle.discountType);
   const [discountValue, setDiscountValue] = useState(String(bundle.discountValue));
   const [products, setProducts] = useState(bundle.products);
-  const [showPicker, setShowPicker] = useState(false);
 
-  const handleProductSelect = ({ selection }: any) => {
-    const newProducts = selection.map((item: any) => ({
-      id: item.id,
-      productId: item.id,
-      title: item.title,
-      productTitle: item.title,
-      image: item.images?.[0]?.originalSrc,
-      productImage: item.images?.[0]?.originalSrc,
-      variantId: item.variants?.[0]?.id,
-      price: parseFloat(item.variants?.[0]?.price || "0"),
-      quantity: 1,
-      role: "MAIN",
-    }));
-    setProducts(newProducts);
-    setShowPicker(false);
+  const handlePickProducts = async () => {
+    const selected = await shopify.resourcePicker({ type: "product", multiple: true, showVariants: false });
+    if (selected) {
+      setProducts(selected.map((item: any) => ({
+        id: item.id,
+        productId: item.id,
+        title: item.title,
+        productTitle: item.title,
+        image: item.images?.[0]?.originalSrc,
+        productImage: item.images?.[0]?.originalSrc,
+        variantId: item.variants?.[0]?.id,
+        price: parseFloat(item.variants?.[0]?.price || "0"),
+        quantity: 1,
+        role: "MAIN",
+      })));
+    }
   };
 
   const handleSave = () => {
@@ -206,19 +207,8 @@ export default function EditBundle() {
                 <BlockStack gap="400">
                   <InlineStack align="space-between">
                     <Text variant="headingMd" as="h2">Produk dalam Bundle</Text>
-                    <Button onClick={() => setShowPicker(true)}>Ubah Produk</Button>
+                    <Button onClick={handlePickProducts}>Ubah Produk</Button>
                   </InlineStack>
-
-                  {showPicker && (
-                    <ResourcePicker
-                      resourceType="Product"
-                      open={showPicker}
-                      onSelection={handleProductSelect}
-                      onCancel={() => setShowPicker(false)}
-                      allowMultiple
-                      showVariants={false}
-                    />
-                  )}
 
                   <ResourceList
                     resourceName={{ singular: "produk", plural: "produk" }}

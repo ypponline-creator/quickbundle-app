@@ -21,7 +21,7 @@ import {
   Banner,
   RadioButton,
 } from "@shopify/polaris";
-import { TitleBar, ResourcePicker } from "@shopify/app-bridge-react";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { useState, useCallback } from "react";
@@ -113,6 +113,7 @@ interface VolumeTier {
 }
 
 export default function NewBundle() {
+  const shopify = useAppBridge();
   const navigate = useNavigate();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
@@ -124,41 +125,49 @@ export default function NewBundle() {
   const [discountValue, setDiscountValue] = useState("10");
   const [products, setProducts] = useState<Product[]>([]);
   const [giftProducts, setGiftProducts] = useState<Product[]>([]);
-  const [showProductPicker, setShowProductPicker] = useState(false);
-  const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [volumeTiers, setVolumeTiers] = useState<VolumeTier[]>([
     { minQuantity: 2, discountType: "PERCENTAGE", discountValue: 10 },
     { minQuantity: 3, discountType: "PERCENTAGE", discountValue: 15 },
     { minQuantity: 5, discountType: "PERCENTAGE", discountValue: 20 },
   ]);
 
-  const handleProductSelect = ({ selection }: any) => {
-    const newProducts = selection.map((item: any) => ({
-      id: item.id,
-      title: item.title,
-      image: item.images?.[0]?.originalSrc,
-      variantId: item.variants?.[0]?.id,
-      variantTitle: item.variants?.[0]?.title,
-      price: parseFloat(item.variants?.[0]?.price || "0"),
-      quantity: 1,
-      role: "MAIN",
-    }));
-    setProducts(newProducts);
-    setShowProductPicker(false);
+  const handlePickProducts = async () => {
+    const selected = await shopify.resourcePicker({
+      type: "product",
+      multiple: type !== "BOGO",
+      showVariants: false,
+    });
+    if (selected) {
+      setProducts(selected.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        image: item.images?.[0]?.originalSrc,
+        variantId: item.variants?.[0]?.id,
+        variantTitle: item.variants?.[0]?.title,
+        price: parseFloat(item.variants?.[0]?.price || "0"),
+        quantity: 1,
+        role: "MAIN",
+      })));
+    }
   };
 
-  const handleGiftSelect = ({ selection }: any) => {
-    const newProducts = selection.map((item: any) => ({
-      id: item.id,
-      title: item.title,
-      image: item.images?.[0]?.originalSrc,
-      variantId: item.variants?.[0]?.id,
-      price: parseFloat(item.variants?.[0]?.price || "0"),
-      quantity: 1,
-      role: "GIFT",
-    }));
-    setGiftProducts(newProducts);
-    setShowGiftPicker(false);
+  const handlePickGift = async () => {
+    const selected = await shopify.resourcePicker({
+      type: "product",
+      multiple: false,
+      showVariants: false,
+    });
+    if (selected) {
+      setGiftProducts(selected.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        image: item.images?.[0]?.originalSrc,
+        variantId: item.variants?.[0]?.id,
+        price: parseFloat(item.variants?.[0]?.price || "0"),
+        quantity: 1,
+        role: "GIFT",
+      })));
+    }
   };
 
   const handleSave = () => {
@@ -233,21 +242,10 @@ export default function NewBundle() {
               <Text variant="headingMd" as="h2">
                 {type === "BOGO" || type === "FREE_GIFT" ? "Produk Utama" : "Produk dalam Bundle"}
               </Text>
-              <Button onClick={() => setShowProductPicker(true)}>
+              <Button onClick={handlePickProducts}>
                 + Tambah Produk
               </Button>
             </InlineStack>
-
-            {showProductPicker && (
-              <ResourcePicker
-                resourceType="Product"
-                open={showProductPicker}
-                onSelection={handleProductSelect}
-                onCancel={() => setShowProductPicker(false)}
-                allowMultiple={type !== "BOGO"}
-                showVariants={false}
-              />
-            )}
 
             {products.length === 0 ? (
               <Box
@@ -309,21 +307,10 @@ export default function NewBundle() {
                 <Text variant="headingMd" as="h2">
                   {type === "BOGO" ? "Produk Gratis (Get One)" : "Produk Hadiah (Free Gift)"}
                 </Text>
-                <Button onClick={() => setShowGiftPicker(true)}>
+                <Button onClick={handlePickGift}>
                   + Pilih Produk Hadiah
                 </Button>
               </InlineStack>
-
-              {showGiftPicker && (
-                <ResourcePicker
-                  resourceType="Product"
-                  open={showGiftPicker}
-                  onSelection={handleGiftSelect}
-                  onCancel={() => setShowGiftPicker(false)}
-                  allowMultiple={false}
-                  showVariants={false}
-                />
-              )}
 
               {giftProducts.map((p) => (
                 <InlineStack key={p.id} align="space-between">
