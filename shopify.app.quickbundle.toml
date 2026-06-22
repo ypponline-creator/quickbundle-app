@@ -2,7 +2,7 @@
 
 name = "QuickBundle "
 client_id = "09d6042335412f0c52b8643bdc976e37"
-application_url = "https://shopify.dev/apps/default-app-home"
+application_url = "https://quickbundle-production.up.railway.app"
 # URL akan otomatis diupdate saat npm run dev
 embedded = true
 
@@ -15,7 +15,7 @@ automatically_update_urls_on_dev = true
 scopes = "read_discounts,read_draft_orders,read_orders,read_products,write_discounts,write_draft_orders,write_products"
 
 [auth]
-redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
+redirect_urls = [ "https://quickbundle-production.up.railway.app/auth/callback" ]
 
 [webhooks]
 api_version = "2026-07"
