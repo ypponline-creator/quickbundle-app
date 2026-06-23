@@ -1,6 +1,12 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useNavigate, useSearchParams, Form, useActionData, useSubmit } from "@remix-run/react";
+import {
+  useLoaderData,
+  useNavigate,
+  useSearchParams,
+  useActionData,
+  useSubmit,
+} from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -19,26 +25,31 @@ import {
   ResourceItem,
   Box,
   Banner,
-  RadioButton,
+  Checkbox,
+  Tooltip,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { useState, useCallback } from "react";
+import { useState } from "react";
+import { getPlan, canUseBundleType } from "../lib/plan-utils";
 
 const BUNDLE_TYPES = [
-  { label: "📦 Fixed Bundle - gabung produk spesifik dengan diskon", value: "FIXED" },
-  { label: "🎨 Mix & Match - pilih N dari koleksi dengan diskon", value: "MIX_MATCH" },
-  { label: "🎁 BOGO - beli 1 gratis 1", value: "BOGO" },
-  { label: "🎀 Free Gift - hadiah gratis saat beli produk", value: "FREE_GIFT" },
-  { label: "📊 Volume Discount - makin banyak makin hemat", value: "VOLUME" },
-  { label: "⬆️ Cross-sell - rekomendasi produk pelengkap", value: "CROSS_SELL" },
+  { label: "📦 Fixed Bundle — gabung produk spesifik dengan diskon", value: "FIXED" },
+  { label: "🎨 Mix & Match — pilih N dari koleksi dengan diskon", value: "MIX_MATCH" },
+  { label: "🎁 BOGO — beli 1 gratis 1", value: "BOGO" },
+  { label: "🎀 Free Gift — hadiah gratis saat beli produk", value: "FREE_GIFT" },
+  { label: "📊 Volume Discount — makin banyak makin hemat", value: "VOLUME" },
+  { label: "⬆️ Cross-sell — rekomendasi produk pelengkap", value: "CROSS_SELL" },
 ];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
-  return json({ currency: settings?.currency || "MYR" });
+  return json({
+    currency: settings?.currency || "MYR",
+    planKey: settings?.plan || "FREE",
+  });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -51,9 +62,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const discountValue = parseFloat(formData.get("discountValue") as string) || 0;
   const productsJson = formData.get("products") as string;
   const volumeTiersJson = formData.get("volumeTiers") as string;
+  const minSelectQty = parseInt(formData.get("minSelectQty") as string) || 1;
+  const maxSelectQty = parseInt(formData.get("maxSelectQty") as string) || 1;
 
   if (!title || !type) {
     return json({ error: "Nama bundle dan tipe harus diisi" }, { status: 400 });
+  }
+
+  const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
+  const planKey = settings?.plan || "FREE";
+
+  if (!canUseBundleType(planKey, type)) {
+    return json({ error: `Tipe bundle ini membutuhkan upgrade plan. Plan Anda saat ini: ${planKey}.` }, { status: 403 });
   }
 
   const products = productsJson ? JSON.parse(productsJson) : [];
@@ -67,6 +87,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       discountType,
       discountValue,
       status: "ACTIVE",
+      minQuantity: type === "MIX_MATCH" ? minSelectQty : undefined,
+      maxQuantity: type === "MIX_MATCH" ? maxSelectQty : undefined,
       products: {
         create: products.map((p: any) => ({
           productId: p.id,
@@ -81,15 +103,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           role: p.role || "MAIN",
         })),
       },
-      volumeTiers: type === "VOLUME"
-        ? {
-            create: volumeTiers.map((t: any) => ({
-              minQuantity: t.minQuantity,
-              discountType: t.discountType || "PERCENTAGE",
-              discountValue: t.discountValue,
-            })),
-          }
-        : undefined,
+      volumeTiers:
+        type === "VOLUME"
+          ? {
+              create: volumeTiers.map((t: any) => ({
+                minQuantity: t.minQuantity,
+                discountType: t.discountType || "PERCENTAGE",
+                discountValue: t.discountValue,
+              })),
+            }
+          : undefined,
     },
   });
 
@@ -114,42 +137,54 @@ interface VolumeTier {
 }
 
 export default function NewBundle() {
-  const { currency } = useLoaderData<typeof loader>();
+  const { currency, planKey } = useLoaderData<typeof loader>();
   const shopify = useAppBridge();
   const navigate = useNavigate();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const [searchParams] = useSearchParams();
+  const plan = getPlan(planKey);
 
+  const defaultType = searchParams.get("type") || "FIXED";
   const [title, setTitle] = useState("");
-  const [type, setType] = useState(searchParams.get("type") || "FIXED");
+  const [type, setType] = useState(defaultType);
   const [discountType, setDiscountType] = useState("PERCENTAGE");
   const [discountValue, setDiscountValue] = useState("10");
   const [products, setProducts] = useState<Product[]>([]);
   const [giftProducts, setGiftProducts] = useState<Product[]>([]);
+  const [minSelectQty, setMinSelectQty] = useState("2");
+  const [maxSelectQty, setMaxSelectQty] = useState("3");
+  const [showImageSwatch, setShowImageSwatch] = useState(false);
   const [volumeTiers, setVolumeTiers] = useState<VolumeTier[]>([
     { minQuantity: 2, discountType: "PERCENTAGE", discountValue: 10 },
     { minQuantity: 3, discountType: "PERCENTAGE", discountValue: 15 },
     { minQuantity: 5, discountType: "PERCENTAGE", discountValue: 20 },
   ]);
 
+  const canUseType = canUseBundleType(planKey, type);
+
+  const handleTypeChange = (val: string) => {
+    setType(val);
+  };
+
   const handlePickProducts = async () => {
     const selected = await shopify.resourcePicker({
       type: "product",
       multiple: type !== "BOGO",
-      showVariants: false,
     });
     if (selected) {
-      setProducts(selected.map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        image: item.images?.[0]?.originalSrc,
-        variantId: item.variants?.[0]?.id,
-        variantTitle: item.variants?.[0]?.title,
-        price: parseFloat(item.variants?.[0]?.price || "0"),
-        quantity: 1,
-        role: "MAIN",
-      })));
+      setProducts(
+        selected.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          image: item.images?.[0]?.originalSrc,
+          variantId: item.variants?.[0]?.id,
+          variantTitle: item.variants?.[0]?.title,
+          price: parseFloat(item.variants?.[0]?.price || "0"),
+          quantity: 1,
+          role: "MAIN",
+        }))
+      );
     }
   };
 
@@ -157,18 +192,19 @@ export default function NewBundle() {
     const selected = await shopify.resourcePicker({
       type: "product",
       multiple: false,
-      showVariants: false,
     });
     if (selected) {
-      setGiftProducts(selected.map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        image: item.images?.[0]?.originalSrc,
-        variantId: item.variants?.[0]?.id,
-        price: parseFloat(item.variants?.[0]?.price || "0"),
-        quantity: 1,
-        role: "GIFT",
-      })));
+      setGiftProducts(
+        selected.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          image: item.images?.[0]?.originalSrc,
+          variantId: item.variants?.[0]?.id,
+          price: parseFloat(item.variants?.[0]?.price || "0"),
+          quantity: 1,
+          role: "GIFT",
+        }))
+      );
     }
   };
 
@@ -177,7 +213,6 @@ export default function NewBundle() {
       ...products,
       ...giftProducts.map((p) => ({ ...p, role: "GIFT" })),
     ];
-
     const formData = new FormData();
     formData.append("title", title);
     formData.append("type", type);
@@ -185,7 +220,8 @@ export default function NewBundle() {
     formData.append("discountValue", discountValue);
     formData.append("products", JSON.stringify(allProducts));
     formData.append("volumeTiers", JSON.stringify(volumeTiers));
-
+    formData.append("minSelectQty", minSelectQty);
+    formData.append("maxSelectQty", maxSelectQty);
     submit(formData, { method: "post" });
   };
 
@@ -197,23 +233,24 @@ export default function NewBundle() {
   };
 
   const updateVolumeTier = (index: number, field: string, value: any) => {
-    setVolumeTiers(
-      volumeTiers.map((tier, i) =>
-        i === index ? { ...tier, [field]: value } : tier
-      )
-    );
+    setVolumeTiers(volumeTiers.map((tier, i) => (i === index ? { ...tier, [field]: value } : tier)));
   };
 
   return (
-    <Page
-      backAction={{ content: "Bundles", url: "/app/bundles" }}
-      title="Buat Bundle Baru"
-    >
+    <Page backAction={{ content: "Bundles", url: "/app/bundles" }} title="Buat Bundle Baru">
       <TitleBar title="Buat Bundle Baru" />
 
       <BlockStack gap="600">
-        {actionData?.error && (
-          <Banner tone="critical">{actionData.error}</Banner>
+        {actionData?.error && <Banner tone="critical">{actionData.error}</Banner>}
+
+        {!canUseType && (
+          <Banner
+            tone="warning"
+            title={`Tipe bundle ini membutuhkan upgrade plan`}
+            action={{ content: "Lihat Plans", onAction: () => navigate("/app/billing") }}
+          >
+            Plan {plan.name} hanya mendukung Fixed Bundle dan BOGO. Upgrade untuk unlock semua tipe bundle.
+          </Banner>
         )}
 
         {/* Bundle Info */}
@@ -229,13 +266,114 @@ export default function NewBundle() {
             />
             <Select
               label="Tipe Bundle"
-              options={BUNDLE_TYPES}
+              options={BUNDLE_TYPES.map((bt) => ({
+                ...bt,
+                label: canUseBundleType(planKey, bt.value)
+                  ? bt.label
+                  : `🔒 ${bt.label} (Perlu upgrade)`,
+                disabled: !canUseBundleType(planKey, bt.value),
+              }))}
               value={type}
-              onChange={setType}
+              onChange={handleTypeChange}
               helpText="Pilih tipe bundle yang sesuai dengan strategi penjualan Anda"
             />
           </BlockStack>
         </Card>
+
+        {/* Mix & Match Config */}
+        {type === "MIX_MATCH" && (
+          <Card>
+            <BlockStack gap="400">
+              <Text variant="headingMd" as="h2">Konfigurasi Mix & Match</Text>
+              <InlineStack gap="400">
+                <TextField
+                  label="Min. produk dipilih"
+                  type="number"
+                  value={minSelectQty}
+                  onChange={setMinSelectQty}
+                  autoComplete="off"
+                  helpText="Minimum item yang harus dipilih pembeli"
+                />
+                <TextField
+                  label="Max. produk dipilih"
+                  type="number"
+                  value={maxSelectQty}
+                  onChange={setMaxSelectQty}
+                  autoComplete="off"
+                  helpText="Maksimum item yang dapat dipilih pembeli"
+                />
+              </InlineStack>
+
+              {/* Image Swatch Toggle */}
+              <Box>
+                {plan.hasImageSwatch ? (
+                  <Checkbox
+                    label="Tampilkan Image Swatch (gambar produk sebagai pilihan)"
+                    checked={showImageSwatch}
+                    onChange={setShowImageSwatch}
+                    helpText="Pembeli akan melihat foto produk saat memilih item bundle, bukan teks saja."
+                  />
+                ) : (
+                  <Box
+                    padding="300"
+                    background="bg-surface-secondary"
+                    borderRadius="200"
+                    borderWidth="025"
+                    borderColor="border"
+                  >
+                    <InlineStack gap="200" blockAlign="center">
+                      <Text as="span">🔒</Text>
+                      <BlockStack gap="050">
+                        <Text variant="bodySm" fontWeight="semibold" as="p">
+                          Image Swatch — Tersedia di plan Standard+
+                        </Text>
+                        <Text variant="bodySm" tone="subdued" as="p">
+                          Tampilkan gambar produk sebagai pilihan mix & match agar lebih menarik.
+                        </Text>
+                      </BlockStack>
+                      <Button size="slim" onClick={() => navigate("/app/billing")}>Upgrade</Button>
+                    </InlineStack>
+                  </Box>
+                )}
+              </Box>
+
+              {showImageSwatch && plan.hasImageSwatch && products.length > 0 && (
+                <Box
+                  padding="300"
+                  background="bg-surface-secondary"
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor="border"
+                >
+                  <BlockStack gap="200">
+                    <Text variant="bodySm" fontWeight="semibold" as="p">Preview Image Swatch:</Text>
+                    <InlineStack gap="200" wrap>
+                      {products.map((p) => (
+                        <BlockStack key={p.id} gap="100" inlineAlign="center">
+                          <Box
+                            borderWidth="025"
+                            borderRadius="200"
+                            borderColor="border-emphasis"
+                            padding="050"
+                          >
+                            <Thumbnail
+                              source={p.image || ""}
+                              alt={p.title}
+                              size="medium"
+                            />
+                          </Box>
+                          <Text variant="bodySm" as="p" alignment="center">
+                            {p.title.length > 15 ? p.title.substring(0, 15) + "…" : p.title}
+                          </Text>
+                        </BlockStack>
+                      ))}
+                    </InlineStack>
+                  </BlockStack>
+                </Box>
+              )}
+            </BlockStack>
+          </Card>
+        )}
 
         {/* Product Selection */}
         <Card>
@@ -244,23 +382,14 @@ export default function NewBundle() {
               <Text variant="headingMd" as="h2">
                 {type === "BOGO" || type === "FREE_GIFT" ? "Produk Utama" : "Produk dalam Bundle"}
               </Text>
-              <Button onClick={handlePickProducts}>
-                + Tambah Produk
-              </Button>
+              <Button onClick={handlePickProducts}>+ Tambah Produk</Button>
             </InlineStack>
 
             {products.length === 0 ? (
-              <Box
-                padding="600"
-                borderWidth="025"
-                borderRadius="200"
-                borderColor="border-subdued"
-              >
-                <BlockStack gap="200" align="center">
-                  <Text alignment="center" tone="subdued" as="p">
-                    Belum ada produk. Klik "Tambah Produk" untuk memilih.
-                  </Text>
-                </BlockStack>
+              <Box padding="600" borderWidth="025" borderRadius="200" borderColor="border">
+                <Text alignment="center" tone="subdued" as="p">
+                  Belum ada produk. Klik "Tambah Produk" untuk memilih.
+                </Text>
               </Box>
             ) : (
               <ResourceList
@@ -279,9 +408,7 @@ export default function NewBundle() {
                   >
                     <InlineStack align="space-between">
                       <BlockStack gap="100">
-                        <Text variant="bodyMd" fontWeight="semibold" as="span">
-                          {product.title}
-                        </Text>
+                        <Text variant="bodyMd" fontWeight="semibold" as="span">{product.title}</Text>
                         <Text variant="bodySm" tone="subdued" as="span">
                           {currency} {product.price?.toFixed(2)}
                         </Text>
@@ -301,7 +428,7 @@ export default function NewBundle() {
           </BlockStack>
         </Card>
 
-        {/* Gift Product (BOGO / Free Gift) */}
+        {/* Gift / BOGO */}
         {(type === "BOGO" || type === "FREE_GIFT") && (
           <Card>
             <BlockStack gap="400">
@@ -309,27 +436,18 @@ export default function NewBundle() {
                 <Text variant="headingMd" as="h2">
                   {type === "BOGO" ? "Produk Gratis (Get One)" : "Produk Hadiah (Free Gift)"}
                 </Text>
-                <Button onClick={handlePickGift}>
-                  + Pilih Produk Hadiah
-                </Button>
+                <Button onClick={handlePickGift}>+ Pilih Produk Hadiah</Button>
               </InlineStack>
-
               {giftProducts.map((p) => (
                 <InlineStack key={p.id} align="space-between">
                   <InlineStack gap="300">
-                    {p.image && (
-                      <Thumbnail source={p.image} alt={p.title} size="small" />
-                    )}
+                    {p.image && <Thumbnail source={p.image} alt={p.title} size="small" />}
                     <BlockStack gap="100">
                       <Text variant="bodyMd" fontWeight="semibold" as="span">{p.title}</Text>
                       <Badge tone="success">GRATIS</Badge>
                     </BlockStack>
                   </InlineStack>
-                  <Button
-                    variant="plain"
-                    tone="critical"
-                    onClick={() => setGiftProducts([])}
-                  >
+                  <Button variant="plain" tone="critical" onClick={() => setGiftProducts([])}>
                     Hapus
                   </Button>
                 </InlineStack>
@@ -391,7 +509,7 @@ export default function NewBundle() {
           </Card>
         )}
 
-        {/* Discount Config (non-volume types) */}
+        {/* Discount Config */}
         {type !== "VOLUME" && type !== "BOGO" && type !== "FREE_GIFT" && (
           <Card>
             <BlockStack gap="400">
@@ -417,10 +535,13 @@ export default function NewBundle() {
           </Card>
         )}
 
-        {/* Save */}
         <InlineStack align="end" gap="300">
           <Button onClick={() => navigate("/app/bundles")}>Batal</Button>
-          <Button variant="primary" onClick={handleSave} disabled={!title || !type}>
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            disabled={!title || !type || !canUseType}
+          >
             Simpan Bundle
           </Button>
         </InlineStack>

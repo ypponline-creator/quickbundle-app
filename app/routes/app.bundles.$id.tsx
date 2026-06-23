@@ -130,18 +130,22 @@ export default function EditBundle() {
   };
 
   const handlePickProducts = async () => {
-    const selected = await shopify.resourcePicker({ type: "product", multiple: true, showVariants: false });
+    const selected = await shopify.resourcePicker({ type: "product", multiple: true });
     if (selected) {
-      setProducts(selected.map((item: any) => ({
+      setProducts((selected as any[]).map((item: any) => ({
         id: item.id,
         productId: item.id,
+        bundleId: "",
         title: item.title,
         productTitle: item.title,
         image: item.images?.[0]?.originalSrc,
         productImage: item.images?.[0]?.originalSrc,
         variantId: item.variants?.[0]?.id,
+        variantTitle: item.variants?.[0]?.title ?? null,
         price: parseFloat(item.variants?.[0]?.price || "0"),
+        comparePrice: null,
         quantity: 1,
+        isRequired: true,
         role: "MAIN",
       })));
     }
@@ -415,10 +419,9 @@ export default function EditBundle() {
                       )}
                       <Divider />
                       <Badge tone="success">
-                        Hemat{" "}
                         {discountType === "PERCENTAGE"
-                          ? `${discountValue}%`
-                          : `${currency} ${discountValue}`}
+                          ? `Hemat ${discountValue}%`
+                          : `Hemat ${currency} ${discountValue}`}
                       </Badge>
                     </BlockStack>
                   </Box>
