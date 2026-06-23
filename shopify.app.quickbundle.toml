@@ -1,13 +1,12 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 name = "QuickBundle "
-client_id = "09d6042335412f0c52b8643bdc976e37"
-application_url = "https://quickbundle-production.up.railway.app"
+client_id = "b9b63b6521bff06d5ca47d31746e155e"
+application_url = "https://ideal-smile-production-a30b.up.railway.app"
 # URL akan otomatis diupdate saat npm run dev
 embedded = true
 
 [build]
-include_config_on_deploy = true
 automatically_update_urls_on_dev = true
 
 [access_scopes]
@@ -15,7 +14,7 @@ automatically_update_urls_on_dev = true
 scopes = "read_discounts,read_draft_orders,read_orders,read_products,write_discounts,write_draft_orders,write_products"
 
 [auth]
-redirect_urls = [ "https://quickbundle-production.up.railway.app/auth/callback" ]
+redirect_urls = [ "https://ideal-smile-production-a30b.up.railway.app/auth/callback" ]
 
 [webhooks]
 api_version = "2026-07"
